@@ -27,7 +27,7 @@
     "iron-icon": "PolymerElements/iron-icon#^1.0.0",
     "iron-iconset-svg": "polymerelements/iron-iconset-svg#^1.0.0",
     "iron-validatable-behavior": "PolymerElements/iron-validatable-behavior#^1.0.0",
-    "paper-menu-input": "git://github.com/cpboyd/paper-menu-input.git",
+    "paper-menu-input": "git://github.com/cpboyd/paper-menu-input.git#master",
     "paper-menu-button": "PolymerElements/paper-menu-button#^1.0.0",
     "paper-dropdown-menu": "PolymerElements/paper-dropdown-menu#^1.0.0",
     "paper-ripple": "PolymerElements/paper-ripple#^1.0.0",
