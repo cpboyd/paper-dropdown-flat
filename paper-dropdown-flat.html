@@ -17,10 +17,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="../iron-validatable-behavior/iron-validatable-behavior.html">
 <link rel="import" href="../paper-input/paper-input.html">
 <link rel="import" href="../paper-menu-button/paper-menu-button.html">
+<link rel="import" href="../paper-menu/paper-menu.html">
 <link rel="import" href="../paper-ripple/paper-ripple.html">
 <link rel="import" href="../paper-styles/default-theme.html">
 
-<link rel="import" href="paper-dropdown-menu-icons.html">
+<link rel="import" href="../paper-dropdown-menu/paper-dropdown-menu-icons.html">
+<link rel="import" href="../paper-menu-input/paper-menu-input.html">
 
 <!--
 Material design: [Dropdown menus](https://www.google.com/design/spec/components/buttons.html#buttons-dropdown-buttons)
@@ -79,7 +81,7 @@ respectively.
 @demo demo/index.html
 -->
 
-<dom-module id="paper-dropdown-menu">
+<dom-module id="paper-dropdown-flat">
   <template>
     <style>
       :host {
@@ -114,10 +116,6 @@ respectively.
         display: none;
       }
 
-      :host([no-label-float]) paper-ripple {
-        top: 8px;
-      }
-
       paper-ripple {
         top: 12px;
         left: 0px;
@@ -134,10 +132,6 @@ respectively.
         @apply(--paper-dropdown-menu-button);
       }
 
-      paper-input {
-        @apply(--paper-dropdown-menu-input);
-      }
-
       iron-icon {
         color: var(--disabled-text-color);
 
@@ -151,7 +145,7 @@ respectively.
       id="menuButton"
       vertical-align="[[verticalAlign]]"
       horizontal-align="[[horizontalAlign]]"
-      vertical-offset="[[_computeMenuVerticalOffset(noLabelFloat)]]"
+      vertical-offset="-4"
       disabled="[[disabled]]"
       no-animations="[[noAnimations]]"
       on-iron-select="_onIronSelect"
@@ -159,22 +153,11 @@ respectively.
       opened="{{opened}}">
       <div class="dropdown-trigger">
         <paper-ripple></paper-ripple>
-        <!-- paper-input has type="text" for a11y, do not remove -->
-        <paper-input
-          type="text"
-          invalid="[[invalid]]"
-          readonly
-          disabled="[[disabled]]"
-          value="[[selectedItemLabel]]"
-          placeholder="[[placeholder]]"
-          error-message="[[errorMessage]]"
-          always-float-label="[[alwaysFloatLabel]]"
-          no-label-float="[[noLabelFloat]]"
-          label="[[label]]">
-          <iron-icon icon="paper-dropdown-menu:arrow-drop-down" suffix></iron-icon>
-        </paper-input>
+        [[selectedItemLabel]]
+        <iron-icon icon="paper-dropdown-menu:arrow-drop-down"></iron-icon>
       </div>
-      <content id="content" select=".dropdown-content"></content>
+      <paper-menu-input selected="{{selected}}" itemLabels="{{itemLabels}}" class="dropdown-content">
+      </paper-menu-input>
     </paper-menu-button>
   </template>
 
@@ -183,13 +166,11 @@ respectively.
       'use strict';
 
       Polymer({
-        is: 'paper-dropdown-menu',
+        is: 'paper-dropdown-flat',
 
         behaviors: [
           Polymer.IronButtonState,
-          Polymer.IronControlState,
-          Polymer.IronFormElementBehavior,
-          Polymer.IronValidatableBehavior
+          Polymer.IronControlState
         ],
 
         properties: {
@@ -216,6 +197,22 @@ respectively.
             notify: true,
             readOnly: true
           },
+      
+          /**
+           * Array of menu values.
+           */
+          itemLabels: {
+            type: Array
+          },
+          
+          /**
+           * Gets or sets the selected element. The default is to use the index of the item.
+           * @type {string|number}
+           */
+          selected: {
+            type: String,
+            notify: true
+          },
 
           /**
            * The value for this element that will be used when submitting in
@@ -226,13 +223,6 @@ respectively.
             type: String,
             notify: true,
             readOnly: true
-          },
-
-          /**
-           * The label for the dropdown.
-           */
-          label: {
-            type: String
           },
 
           /**
@@ -257,25 +247,6 @@ respectively.
             notify: true,
             value: false,
             observer: '_openedChanged'
-          },
-
-          /**
-           * Set to true to disable the floating label. Bind this to the
-           * `<paper-input-container>`'s `noLabelFloat` property.
-           */
-          noLabelFloat: {
-              type: Boolean,
-              value: false,
-              reflectToAttribute: true
-          },
-
-          /**
-           * Set to true to always float the label. Bind this to the
-           * `<paper-input-container>`'s `alwaysFloatLabel` property.
-           */
-          alwaysFloatLabel: {
-            type: Boolean,
-            value: false
           },
 
           /**
@@ -402,32 +373,6 @@ respectively.
 
           this._setValue(value);
           this._setSelectedItemLabel(value);
-        },
-
-        /**
-         * Compute the vertical offset of the menu based on the value of
-         * `noLabelFloat`.
-         *
-         * @param {boolean} noLabelFloat True if the label should not float
-         * above the input, otherwise false.
-         */
-        _computeMenuVerticalOffset: function(noLabelFloat) {
-          // NOTE(cdata): These numbers are somewhat magical because they are
-          // derived from the metrics of elements internal to `paper-input`'s
-          // template. The metrics will change depending on whether or not the
-          // input has a floating label.
-          return noLabelFloat ? -4 : 8;
-        },
-
-        /**
-         * Returns false if the element is required and does not have a selection,
-         * and true otherwise.
-         * @param {*=} _value Ignored.
-         * @return {boolean} true if `required` is false, or if `required` is true
-         * and the element has a valid selection.
-         */
-        _getValidity: function(_value) {
-          return this.disabled || !this.required || (this.required && !!this.value);
         },
 
         _openedChanged: function() {
