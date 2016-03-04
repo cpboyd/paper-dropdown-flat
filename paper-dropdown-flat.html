@@ -12,7 +12,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="../iron-a11y-keys-behavior/iron-a11y-keys-behavior.html">
 <link rel="import" href="../iron-behaviors/iron-button-state.html">
 <link rel="import" href="../iron-behaviors/iron-control-state.html">
-<link rel="import" href="../iron-form-element-behavior/iron-form-element-behavior.html">
+<link rel="import" href="../iron-selector/iron-selectable.html">
 <link rel="import" href="../iron-icon/iron-icon.html">
 <link rel="import" href="../iron-validatable-behavior/iron-validatable-behavior.html">
 <link rel="import" href="../paper-input/paper-input.html">
@@ -20,9 +20,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="../paper-menu/paper-menu.html">
 <link rel="import" href="../paper-ripple/paper-ripple.html">
 <link rel="import" href="../paper-styles/default-theme.html">
-
-<link rel="import" href="../paper-dropdown-menu/paper-dropdown-menu-icons.html">
-<link rel="import" href="../paper-menu-input/paper-menu-input.html">
 
 <!--
 Material design: [Dropdown menus](https://www.google.com/design/spec/components/buttons.html#buttons-dropdown-buttons)
@@ -132,10 +129,14 @@ respectively.
         @apply(--paper-dropdown-menu-button);
       }
 
-      iron-icon {
-        color: var(--disabled-text-color);
+      div.selectable-content {
+        display: block;
+        padding: 8px 0;
 
-        @apply(--paper-dropdown-menu-icon);
+        background: var(--paper-menu-background-color, --primary-background-color);
+        color: var(--paper-menu-color, --primary-text-color);
+
+        @apply(--paper-menu);
       }
     </style>
 
@@ -154,10 +155,13 @@ respectively.
       <div class="dropdown-trigger">
         <paper-ripple></paper-ripple>
         [[selectedItemLabel]]
-        <iron-icon icon="paper-dropdown-menu:arrow-drop-down"></iron-icon>
+        <iron-icon icon="arrow-drop-down"></iron-icon>
       </div>
-      <paper-menu-input selected="{{selected}}" itemLabels="{{itemLabels}}" class="dropdown-content">
-      </paper-menu-input>
+      <div class="selectable-content dropdown-content">
+        <template is="dom-repeat" items="{{itemLabels}}">
+          <paper-item>{{item}}</paper-item>
+        </template>
+      </div>
     </paper-menu-button>
   </template>
 
@@ -170,7 +174,8 @@ respectively.
 
         behaviors: [
           Polymer.IronButtonState,
-          Polymer.IronControlState
+          Polymer.IronControlState,
+          Polymer.IronMenuBehavior
         ],
 
         properties: {
@@ -181,19 +186,6 @@ respectively.
            */
           selectedItemLabel: {
             type: String,
-            notify: true,
-            readOnly: true
-          },
-
-          /**
-           * The last selected item. An item is selected if the dropdown menu has
-           * a child with class `dropdown-content`, and that child triggers an
-           * `iron-select` event with the selected `item` in the `detail`.
-           *
-           * @type {?Object}
-           */
-          selectedItem: {
-            type: Object,
             notify: true,
             readOnly: true
           },
@@ -211,18 +203,8 @@ respectively.
            */
           selected: {
             type: String,
-            notify: true
-          },
-
-          /**
-           * The value for this element that will be used when submitting in
-           * a form. It is read only, and will always have the same value
-           * as `selectedItemLabel`.
-           */
-          value: {
-            type: String,
             notify: true,
-            readOnly: true
+            observer: '_selectedItemChanged'
           },
 
           /**
@@ -292,28 +274,6 @@ respectively.
           'aria-haspopup': 'true'
         },
 
-        observers: [
-          '_selectedItemChanged(selectedItem)'
-        ],
-
-        attached: function() {
-          // NOTE(cdata): Due to timing, a preselected value in a `IronSelectable`
-          // child will cause an `iron-select` event to fire while the element is
-          // still in a `DocumentFragment`. This has the effect of causing
-          // handlers not to fire. So, we double check this value on attached:
-          var contentElement = this.contentElement;
-          if (contentElement && contentElement.selectedItem) {
-            this._setSelectedItem(contentElement.selectedItem);
-          }
-        },
-
-        /**
-         * The content element that is contained by the dropdown menu, if any.
-         */
-        get contentElement() {
-          return Polymer.dom(this.$.content).getDistributedNodes()[0];
-        },
-
         /**
          * Show the dropdown content.
          */
@@ -326,24 +286,6 @@ respectively.
          */
         close: function() {
           this.$.menuButton.close();
-        },
-
-        /**
-         * A handler that is called when `iron-select` is fired.
-         *
-         * @param {CustomEvent} event An `iron-select` event.
-         */
-        _onIronSelect: function(event) {
-          this._setSelectedItem(event.detail.item);
-        },
-
-        /**
-         * A handler that is called when `iron-deselect` is fired.
-         *
-         * @param {CustomEvent} event An `iron-deselect` event.
-         */
-        _onIronDeselect: function(event) {
-          this._setSelectedItem(null);
         },
 
         /**
@@ -363,15 +305,14 @@ respectively.
          * @param {Element} selectedItem A selected Element item, with an
          * optional `label` property.
          */
-        _selectedItemChanged: function(selectedItem) {
+        _selectedItemChanged: function() {
           var value = '';
-          if (!selectedItem) {
+          if (!this.selected || !this.itemLabels) {
             value = '';
           } else {
-            value = selectedItem.label || selectedItem.textContent.trim();
+            value = this.itemLabels[this.selected];
           }
 
-          this._setValue(value);
           this._setSelectedItemLabel(value);
         },
 
@@ -381,6 +322,34 @@ respectively.
           if (e) {
             e.setAttribute('aria-expanded', openState);
           }
+        },
+
+        _updateItems: function() {
+          var nodes = Polymer.dom(this.$$('div.dropdown-content')).queryDistributedElements(this.selectable || '*');
+          nodes = Array.prototype.filter.call(nodes, this._bindFilterItem);
+          this._setItems(nodes);
+        },
+        // observe items change under the given node.
+        _childNodesChanged: function(mutations) {
+            this._updateItems();
+            if (this._shouldUpdateSelection) {
+              this._updateSelected();
+            }
+            // Let other interested parties know about the change so that
+            // we don't have to recreate mutation observers everywher.
+            this.fire('iron-items-changed', mutations, {
+              bubbles: false,
+              cancelable: false
+            });
+        },
+        attached: function() {
+          var boundHandler = this._childNodesChanged.bind(this); 
+          this._observer = Polymer.dom(this.$$('div')).observeNodes(boundHandler);
+          this._updateItems();
+          if (!this._shouldUpdateSelection) {
+            this._updateSelected(this.attrForSelected,this.selected)
+          }
+          this._addListener(this.activateEvent);
         }
       });
     })();
